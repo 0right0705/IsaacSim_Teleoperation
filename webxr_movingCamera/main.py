@@ -175,8 +175,8 @@ class loadUSD():
         right_active_names = self.right_rmpflow.get_active_joints()
         self.right_active_indices = [all_joint_names.index(jn) for jn in right_active_names]
         
-        kps = np.full(robot.num_dof, 1000.0)
-        kds = np.full(robot.num_dof, 100.0)
+        kps = np.full(robot.num_dof, 1500.0)
+        kds = np.full(robot.num_dof, 120.0)
         robot.get_articulation_controller().set_gains(kps=kps, kds=kds)
         print("Robot Gains Force Set.")
 
@@ -344,40 +344,46 @@ class loadUSD():
         left_joints, right_joints = lvm.get_joint_index(robot.dof_names)
         
         while simulation_app.is_running():
-            if world.is_playing():
-                world.step(render=True) # 카메라 렌더링을 위해 True 유지
+            # 1. 시뮬레이션이 중지되었거나 종료 중이면 루프 탈출
+            if not world.is_playing():
+                world.step(render=True)
+                continue
+
+            try:
+                # 2. 물리 스텝 진행
+                world.step(render=True)
                 
+                # 3. 로봇 핸들이 유효한지 최종 확인
+                if not robot.handles_initialized:
+                    continue
+
+                # 4. 텔레오퍼레이션 로직 실행 (중복 호출 제거)
                 action = self.hand_arm_Teleop(lvm, robot, left_joints, right_joints)
+                
                 if action is not None:
                     robot.apply_action(action)
 
-                # --- 카메라 데이터 획득 및 안전 검사 ---
+                # 5. 카메라 데이터 스트리밍
                 rgba_image = self.robot_camera.get_rgba()
-                
-                # 데이터가 None이 아니고, 배열의 차원이 3차원(H, W, 4)인지 확인
                 if rgba_image is not None and len(rgba_image.shape) == 3:
-                    # print(f"Image Mean Brightness: {np.mean(rgba_image)}")
-                    # JPEG 인코딩 및 Base64 변환
                     rgb_image = cv2.cvtColor(rgba_image[:, :, :3], cv2.COLOR_RGB2BGR)
                     _, buffer = cv2.imencode('.jpg', rgb_image, [cv2.IMWRITE_JPEG_QUALITY, 50])
                     jpg_as_text = base64.b64encode(buffer).decode('utf-8')
                     
-                    # [중요] dict 형태로 만들어 JSON으로 변환하여 전송
                     message = json.dumps({"image": jpg_as_text})
                     if hasattr(lvm, 'send_video'):
-                        lvm.send_video(message) # 이제 JSON 문자열이 전송됩니다.
-                if not robot.handles_initialized:
-                    continue
-                try:
-                    action = self.hand_arm_Teleop(lvm, robot, left_joints, right_joints)
-                    if action is not None:
-                        robot.apply_action(action)
-                except Exception as e:
-                    # 종료 시 발생하는 사소한 에러는 무시하고 루프 종료
-                    print(f"Simulation stopping... {e}")
-                    break
-            else:
-                world.step(render=True)
+                        lvm.send_video(message)
+
+            except Exception as e:
+                # 종료 시 발생하는 Articulation 관련 에러는 무시
+                if "NoneType" in str(e) or "initialized" in str(e):
+                    print("Simulation shutting down safely...")
+                else:
+                    print(f"Runtime Error: {e}")
+                break # 에러 발생 시 루프 종료
+
+        # 루프 종료 후 앱 완전히 닫기
+        simulation_app.close()
 
 def main():
     parser = argparse.ArgumentParser()

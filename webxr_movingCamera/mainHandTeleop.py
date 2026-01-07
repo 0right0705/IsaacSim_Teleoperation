@@ -328,11 +328,14 @@ class TesolloVectorMapping:
         if "Little" in angles_dict:
             avp_lit = angles_dict["Little"]
             if len(avp_lit) >= 2:
-                safe_set(left_joints[16], val(avp_lit[0]['xyz'], 0.5))
-                pinky_flexion = val(avp_lit[1]['xyz'], FLEXION_SCALE)
+                pinky_spread_x = np.deg2rad(avp_lit[1]['xyz'][0]) 
+                safe_set(left_joints[16], pinky_spread_x * 0.1)
+                pinky_flexion = np.deg2rad(avp_lit[1]['xyz'][0]) * 0.05
                 safe_set(left_joints[17], pinky_flexion) # MCP Flexion
-                safe_set(left_joints[18], pinky_flexion) # PIP Flexion (MCP 데이터 추종)
-                safe_set(left_joints[19], pinky_flexion) # DIP Flexion (MCP 데이터 추종)
+                # safe_set(left_joints[18], pinky_flexion) # PIP Flexion (MCP 데이터 추종)
+                # safe_set(left_joints[19], pinky_flexion) # DIP Flexion (MCP 데이터 추종)
+                safe_set(left_joints[18], val(avp_lit[2]['xyz'], FLEXION_SCALE))
+                safe_set(left_joints[19], val(avp_lit[3]['xyz'], FLEXION_SCALE))
 
         return actions
 
@@ -387,11 +390,14 @@ class TesolloVectorMapping:
         if "Little" in angles_dict:
             avp_lit = angles_dict["Little"]
             if len(avp_lit) >= 2:
-                safe_set(right_joints[16], val(avp_lit[0]['xyz'], 0.5))
-                pinky_flexion = val(avp_lit[1]['xyz'], FLEXION_SCALE)
+                pinky_spread_x = np.deg2rad(-avp_lit[1]['xyz'][0]) 
+                safe_set(right_joints[16], pinky_spread_x * 0.1)
+                pinky_flexion = np.deg2rad(avp_lit[1]['xyz'][0]) * -0.05
                 safe_set(right_joints[17], pinky_flexion) # MCP Flexion
-                safe_set(right_joints[18], pinky_flexion) # PIP Flexion (MCP 데이터 추종)
-                safe_set(right_joints[19], pinky_flexion) # DIP Flexion (MCP 데이터 추종)
+                # safe_set(right_joints[18], pinky_flexion) # PIP Flexion (MCP 데이터 추종)
+                # safe_set(right_joints[19], pinky_flexion) # DIP Flexion (MCP 데이터 추종)
+                safe_set(right_joints[18], val(avp_lit[2]['xyz'], FLEXION_SCALE))
+                safe_set(right_joints[19], val(avp_lit[3]['xyz'], FLEXION_SCALE))
 
         return actions
     
