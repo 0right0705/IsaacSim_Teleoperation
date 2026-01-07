@@ -101,7 +101,7 @@ class loadUSD():
             
             # [수정 포인트] 속성을 바로 Set 하는 대신 AddTranslateOp()을 사용합니다.
             xformable = UsdGeom.Xformable(origin_prim)
-            xformable.AddTranslateOp().Set(Gf.Vec3d(-0.5, 0.0, 1.7))
+            xformable.AddTranslateOp().Set(Gf.Vec3d(-0.6, 0.0, 2.3))
 
         # 3. XRCamera 생성
         if not is_prim_path_valid(xr_camera_path):
@@ -111,14 +111,14 @@ class loadUSD():
 
         # 4. 기존 robot_camera 추가 (이미지 스트리밍/데이터 수집용)
         camera_prim_path = f"{ROBOT_PRIM_PATH}/openarm_base/robot_camera"
-        camera_pos = np.array([-0.5, 0.0, 1.5]) # VR 시점과 맞추기 위해 높이 조정 추천
-        camera_orientation = euler_angles_to_quats(np.array([0, 50, 0]), degrees=True)
+        camera_pos = np.array([-0.6, 0.0, 2.3]) # VR 시점과 맞추기 위해 높이 조정 추천
+        camera_orientation = euler_angles_to_quats(np.array([0, 65, 0]), degrees=True)
 
         self.robot_camera = Camera(
             prim_path=camera_prim_path,
             position=camera_pos,
             orientation=camera_orientation,
-            resolution=(640, 480)
+            resolution=(720, 480) # 3 : 2 비율
         )
         self.robot_camera.initialize()
         
@@ -176,7 +176,7 @@ class loadUSD():
         self.right_active_indices = [all_joint_names.index(jn) for jn in right_active_names]
         
         kps = np.full(robot.num_dof, 1500.0)
-        kds = np.full(robot.num_dof, 120.0)
+        kds = np.full(robot.num_dof, 180.0)
         robot.get_articulation_controller().set_gains(kps=kps, kds=kds)
         print("Robot Gains Force Set.")
 
@@ -201,7 +201,7 @@ class loadUSD():
 
             # A. 위치 오프셋 계산
             rel_pos = head_pos - self.head_offset_pos
-            camera_base_pos = np.array([-0.5, 0.0, 1.5])
+            camera_base_pos = np.array([-0.6, 0.0, 2.3])
             
             # B. 상대 회전 계산: (초기 머리의 역회전 * 현재 머리 회전)
             rel_head_rot = self.head_offset_quat.inv() * curr_head_rot

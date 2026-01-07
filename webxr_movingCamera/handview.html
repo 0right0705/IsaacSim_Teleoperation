@@ -46,7 +46,7 @@ https://192.168.10.23:8765 에 직접 접속하여
 
   // ----- 2. 가상 스크린 (디버그 모드) -----
   // 초기 상태는 노란색(0xffff00)으로 설정하여 스크린 위치 확인
-  const videoGeometry = new THREE.PlaneGeometry(0.8, 0.45); 
+  const videoGeometry = new THREE.PlaneGeometry(1.5, 1.0); // 3 : 2 비율 (픽셀 비율에 맞추기)
   const videoTexture = new THREE.Texture();
   videoTexture.minFilter = THREE.LinearFilter;
   videoTexture.magFilter = THREE.LinearFilter;
@@ -60,7 +60,7 @@ https://192.168.10.23:8765 에 직접 접속하여
   const videoScreen = new THREE.Mesh(videoGeometry, videoMaterial);
   
   // 사용자 정면 1.0m, 눈높이 1.2m에 배치
-  videoScreen.position.set(0, 0, -1.0); 
+  videoScreen.position.set(0, 0, -1.5); 
   scene.add(camera); 
   camera.add(videoScreen);
 

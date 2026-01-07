@@ -161,46 +161,6 @@ class TesolloVectorMapping:
         
         return pos_isaac, quat_isaac
 
-    # def convert_avp_to_isaac_pose(self, avp_matrix, side="left"):
-    #     # 입력이 None이거나 빈 배열이면 패스
-    #     if avp_matrix is None or (isinstance(avp_matrix, np.ndarray) and avp_matrix.size == 0):
-    #         return None, None
-            
-    #     avp_matrix = np.array(avp_matrix)
-
-    #     # 가끔 (1, 4, 4) 형태로 들어올 수 있음
-    #     if avp_matrix.ndim == 3 and avp_matrix.shape[0] == 1:
-    #         avp_matrix = avp_matrix[0]
-        
-    #     # 4x4 행렬인지 확인
-    #     if avp_matrix.shape != (4, 4):
-    #         return None, None
-
-    #     # [Rotation 처리]
-    #     rot_avp = avp_matrix[:3, :3]
-
-        
-    #     # 1단계: 월드 좌표축 변환
-    #     # rot_isaac_base = self.R_avp_to_isaac @ rot_avp 
-    #     rot_isaac_base = rot_avp
-        
-    #     if side == "left":
-    #         rot_final = rot_avp @ self.left_rotation_offset @ self.axis_swap
-    #         # rot_final = rot_isaac_base
-    #     else: # right
-    #         rot_final = rot_avp @ self.right_rotation_offset @ self.axis_swap
-    #         # rot_final = rot_isaac_base
-
-    #     # [Position 처리] 
-    #     pos_avp = avp_matrix[:3, 3]
-    #     # pos_isaac = self.R_avp_to_isaac @ pos_avp 
-    #     pos_isaac = pos_avp
-        
-    #     # 최종 회전(rot_final)을 쿼터니언으로 변환
-    #     quat_scipy = R.from_matrix(rot_final).as_quat() # x, y, z, w
-    #     quat_isaac = np.array([quat_scipy[3], quat_scipy[0], quat_scipy[1], quat_scipy[2]]) # w, x, y, z
-        
-    #     return pos_isaac, quat_isaac
     
     def calculate_hand_angles(self, transforms):
         WRIST = 0 
