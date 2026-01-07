@@ -1,0 +1,87 @@
+api_version: 1.0
+
+# URDF 기준 최상위 프레임 및 왼팔 끝단 프레임
+root_frame: "world"
+end_effector_frame: "openarm_left_link7"
+
+# 제어 대상 관절 (왼팔 7자유도)
+cspace:
+  - openarm_left_joint1
+  - openarm_left_joint2
+  - openarm_left_joint3
+  - openarm_left_joint4
+  - openarm_left_joint5
+  - openarm_left_joint6
+  - openarm_left_joint7
+
+default_q: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+acceleration_limits: [10, 10, 10, 10, 10, 10, 10]
+jerk_limits: [10000, 10000, 10000, 10000, 10000, 10000, 10000]
+
+# 제어하지 않는 모든 관절 고정 규칙 (오른팔 + 양손 그리퍼)
+cspace_to_urdf_rules:
+  # 오른팔 관절 고정
+  - { name: openarm_right_joint1, rule: fixed, value: 0.0 }
+  - { name: openarm_right_joint2, rule: fixed, value: 0.0 }
+  - { name: openarm_right_joint3, rule: fixed, value: 0.0 }
+  - { name: openarm_right_joint4, rule: fixed, value: 0.0 }
+  - { name: openarm_right_joint5, rule: fixed, value: 0.0 }
+  - { name: openarm_right_joint6, rule: fixed, value: 0.0 }
+  - { name: openarm_right_joint7, rule: fixed, value: 0.0 }
+  
+  # 왼손 Tesollo 그리퍼 관절 고정 (20개)
+  - { name: lj_dg_1_1, rule: fixed, value: 0.0 }
+  - { name: lj_dg_1_2, rule: fixed, value: 0.0 }
+  - { name: lj_dg_1_3, rule: fixed, value: 0.0 }
+  - { name: lj_dg_1_4, rule: fixed, value: 0.0 }
+  - { name: lj_dg_2_1, rule: fixed, value: 0.0 }
+  - { name: lj_dg_2_2, rule: fixed, value: 0.0 }
+  - { name: lj_dg_2_3, rule: fixed, value: 0.0 }
+  - { name: lj_dg_2_4, rule: fixed, value: 0.0 }
+  - { name: lj_dg_3_1, rule: fixed, value: 0.0 }
+  - { name: lj_dg_3_2, rule: fixed, value: 0.0 }
+  - { name: lj_dg_3_3, rule: fixed, value: 0.0 }
+  - { name: lj_dg_3_4, rule: fixed, value: 0.0 }
+  - { name: lj_dg_4_1, rule: fixed, value: 0.0 }
+  - { name: lj_dg_4_2, rule: fixed, value: 0.0 }
+  - { name: lj_dg_4_3, rule: fixed, value: 0.0 }
+  - { name: lj_dg_4_4, rule: fixed, value: 0.0 }
+  - { name: lj_dg_5_1, rule: fixed, value: 0.0 }
+  - { name: lj_dg_5_2, rule: fixed, value: 0.0 }
+  - { name: lj_dg_5_3, rule: fixed, value: 0.0 }
+  - { name: lj_dg_5_4, rule: fixed, value: 0.0 }
+
+  # 오른손 Tesollo 그리퍼 관절 고정 (20개)
+  - { name: rj_dg_1_1, rule: fixed, value: 0.0 }
+  - { name: rj_dg_1_2, rule: fixed, value: 0.0 }
+  - { name: rj_dg_1_3, rule: fixed, value: 0.0 }
+  - { name: rj_dg_1_4, rule: fixed, value: 0.0 }
+  - { name: rj_dg_2_1, rule: fixed, value: 0.0 }
+  - { name: rj_dg_2_2, rule: fixed, value: 0.0 }
+  - { name: rj_dg_2_3, rule: fixed, value: 0.0 }
+  - { name: rj_dg_2_4, rule: fixed, value: 0.0 }
+  - { name: rj_dg_3_1, rule: fixed, value: 0.0 }
+  - { name: rj_dg_3_2, rule: fixed, value: 0.0 }
+  - { name: rj_dg_3_3, rule: fixed, value: 0.0 }
+  - { name: rj_dg_3_4, rule: fixed, value: 0.0 }
+  - { name: rj_dg_4_1, rule: fixed, value: 0.0 }
+  - { name: rj_dg_4_2, rule: fixed, value: 0.0 }
+  - { name: rj_dg_4_3, rule: fixed, value: 0.0 }
+  - { name: rj_dg_4_4, rule: fixed, value: 0.0 }
+  - { name: rj_dg_5_1, rule: fixed, value: 0.0 }
+  - { name: rj_dg_5_2, rule: fixed, value: 0.0 }
+  - { name: rj_dg_5_3, rule: fixed, value: 0.0 }
+  - { name: rj_dg_5_4, rule: fixed, value: 0.0 }
+
+# 자기 충돌 회피용 구체 설정 (URDF 메시 위치 기반)
+collision_spheres:
+  - openarm_left_link4:
+      - "center": [0.0, -0.0315, 0.06]
+        "radius": 0.05
+  - openarm_left_link5:
+      - "center": [0.0, 0.0, 0.045]
+        "radius": 0.04
+  - openarm_left_link6:
+      - "center": [-0.0375, 0.0, 0.0]
+        "radius": 0.03

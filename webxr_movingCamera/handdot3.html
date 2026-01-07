@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>WebXR AR: hello! 20cm 앞 표시</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <style>
+    html,body { margin:0; height:100%; background:#000; color:#fff; }
+    canvas { display:block; }
+    #status {
+      position: fixed; top: 12px; left: 12px; right: 12px;
+      font: 16px/1.4 monospace; color:#fff; background: rgba(0,0,0,0.35);
+      padding: 8px 12px; border-radius: 10px; pointer-events:none;
+    }
+  </style>
+</head>
+<body>
+<div id="status">Status: Ready</div>
+
+<script type="module">
+  import * as THREE from 'https://unpkg.com/three@0.155.0/build/three.module.js';
+  import { ARButton } from 'https://unpkg.com/three@0.155.0/examples/jsm/webxr/ARButton.js';
+
+  // ----- 기본 세팅 -----
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
+
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:'high-performance' });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.xr.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  // AR 버튼 (hand-tracking, dom-overlay 요청)
+  const arButton = ARButton.createButton(renderer, {
+    requiredFeatures: ['local-floor'],
+    optionalFeatures: ['hand-tracking', 'dom-overlay'],
+    domOverlay: { root: document.body }
+  });
+  document.body.appendChild(arButton);
+
+  const statusEl = document.getElementById('status');
+
+  // ----- WebSocket (선택) -----
+  let ws;
+  function connectWebSocket() {
+    try {
+      ws = new WebSocket('wss://192.168.10.23:8765');
+      ws.onopen = () => statusEl.textContent = 'Status: Hand data → WS connected';
+      ws.onclose = () => statusEl.textContent = 'Status: WS disconnected';
+      ws.onerror = (e) => statusEl.textContent = 'Status: WS error ' + (e?.message || '');
+    } catch (e) { statusEl.textContent = 'Status: WS init failed ' + e; }
+  }
+
+  // ----- 텍스트 메쉬 -----
+  function makeTextPlane(text = 'hello!') {
+    const cvs = document.createElement('canvas');
+    cvs.width = 1024; cvs.height = 256;
+    const ctx = cvs.getContext('2d');
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
+    ctx.font = 'bold 140px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(text, cvs.width/2, cvs.height/2);
+
+    const tex = new THREE.CanvasTexture(cvs);
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false });
+    const geo = new THREE.PlaneGeometry(0.18, 0.045); // 18cm x 4.5cm
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 999;
+
+    mesh.userData.dispose = () => {
+      geo.dispose();
+      mat.dispose();
+      tex.dispose();
+    };
+    return mesh;
+  }
+
+  const label = makeTextPlane('hello!');
+  label.visible = false;
+  scene.add(label);
+
+  // ----- 조인트 디버그 메쉬 저장용 -----
+  const jointMeshes = {}; // key: "Left-wrist" 등
+  function disposeJointMeshes() {
+    for (const k in jointMeshes) {
+      const m = jointMeshes[k];
+      if (m) {
+        m.geometry.dispose();
+        m.material.dispose();
+        scene.remove(m);
+      }
+    }
+    Object.keys(jointMeshes).forEach(k => delete jointMeshes[k]);
+  }
+
+  // ----- 벡터 재사용 -----
+  const camPos = new THREE.Vector3();
+  const camDir = new THREE.Vector3();
+
+  // ----- 리사이즈 -----
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  });
+
+  // ----- XR 세션 라이프사이클 -----
+  renderer.xr.addEventListener('sessionstart', () => {
+    connectWebSocket();
+    statusEl.textContent = 'Status: XR session started';
+  });
+
+  renderer.xr.addEventListener('sessionend', () => {
+    if (label?.userData?.dispose) label.userData.dispose();
+    disposeJointMeshes();
+    if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+    statusEl.textContent = 'Status: XR session ended';
+  });
+
+  // ----- 전송 주기 제한 (ms) -----
+  let lastSendTime = 0;
+  const sendInterval = 0; // 디버깅용
+//   const sendInterval = 50; // 20Hz 근처 권장
+
+  // ----- 메인 루프 (WebXR 프레임을 여기서 처리) -----
+  renderer.setAnimationLoop((time, frame) => {
+    // 1) 카메라 앞 일정 거리 라벨
+    camera.getWorldPosition(camPos);
+    camera.getWorldDirection(camDir);
+    const distanceMeters = 0.60; // 20cm
+    const target = camPos.clone().add(camDir.multiplyScalar(distanceMeters));
+    label.position.copy(target);
+    label.quaternion.copy(camera.quaternion);
+
+    // 2) 손 추적 + WebSocket 전송
+    const session = renderer.xr.getSession();
+    const refSpace = renderer.xr.getReferenceSpace();
+
+    if (frame && session && refSpace) {
+      const viewerPose = frame.getViewerPose(refSpace);
+      if (!viewerPose) {
+        statusEl.textContent = 'Status: No viewer pose';
+      }
+
+      let handDetected = false;
+      const handPayload = [];
+
+      // 기존 조인트 가리기 (새 프레임에서 위치 갱신된 것만 보이게)
+      for (const k in jointMeshes) jointMeshes[k].visible = false;
+
+      for (const inputSource of session.inputSources) {
+        if (!inputSource.hand) continue;
+        handDetected = true;
+
+        const handName = inputSource.handedness === 'right' ? 'Right' : 'Left';
+        const joints = [];
+
+        // entries(): [jointName, XRJointSpace]
+        for (const [jointName, jointSpace] of inputSource.hand.entries()) {
+          const jp = frame.getJointPose(jointSpace, refSpace);
+          if (!jp) continue;
+
+          const { x, y, z } = jp.transform.position;
+          joints.push({ name: jointName, x, y, z });
+
+          const key = `${handName}-${jointName}`;
+          if (!jointMeshes[key]) {
+            const geo = new THREE.SphereGeometry(0.01, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ /* 기본색 */ });
+            const mesh = new THREE.Mesh(geo, mat);
+            scene.add(mesh);
+            jointMeshes[key] = mesh;
+          }
+          const mesh = jointMeshes[key];
+          mesh.position.set(x, y, z);
+          mesh.visible = true;
+        }
+
+        handPayload.push({ hand: handName, joints });
+      }
+
+      statusEl.textContent = handDetected ? 'Status: Hand Detected' : 'Status: No Hands Detected';
+
+      if (handDetected && ws && ws.readyState === WebSocket.OPEN) {
+        if (time - lastSendTime > sendInterval) {
+          ws.send(JSON.stringify(handPayload));
+          lastSendTime = time;
+        }
+      }
+    }
+
+    renderer.render(scene, camera);
+  });
+</script>
+</body>
+</html>

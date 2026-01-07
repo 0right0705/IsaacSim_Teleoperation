@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>WebXR Teleop: Optimized Camera + Hand Tracking</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <style>
+    body { margin: 0; overflow: hidden; background-color: #000; }
+    #status {
+      position: fixed; top: 12px; left: 12px; right: 12px;
+      font: 14px monospace; color: #00ff00; background: rgba(0,0,0,0.7);
+      padding: 15px; border-radius: 8px; pointer-events: none; z-index: 10;
+      white-space: pre-wrap; line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+<div id="status">Status: Initializing...
+[중요] 만약 숫자가 안 올라가면 
+https://192.168.10.23:8765 에 직접 접속하여 
+'고급 -> 계속 진행'을 눌러주세요.</div>
+
+<script type="module">
+  import * as THREE from 'https://unpkg.com/three@0.155.0/build/three.module.js';
+  import { XRButton } from 'https://unpkg.com/three@0.155.0/examples/jsm/webxr/XRButton.js';
+
+  // ----- 1. Scene 및 Renderer 초기화 -----
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x222222); // 배경을 회색으로 설정
+
+  const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 50);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.xr.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  // AR/VR 버튼 (Hand Tracking 필수 활성화)
+  document.body.appendChild(XRButton.createButton(renderer, {
+    requiredFeatures: ['local-floor'],
+    optionalFeatures: ['hand-tracking', 'dom-overlay'],
+    domOverlay: { root: document.body }
+  }));
+
+  const statusEl = document.getElementById('status');
+
+  // ----- 2. 가상 스크린 (디버그 모드) -----
+  // 초기 상태는 노란색(0xffff00)으로 설정하여 스크린 위치 확인
+  const videoGeometry = new THREE.PlaneGeometry(1.6, 0.9); 
+  const videoTexture = new THREE.Texture();
+  videoTexture.minFilter = THREE.LinearFilter;
+  videoTexture.magFilter = THREE.LinearFilter;
+  videoTexture.colorSpace = THREE.SRGBColorSpace;
+
+  const videoMaterial = new THREE.MeshBasicMaterial({ 
+    color: 0xffff00, // 데이터가 오기 전엔 노란색
+    map: null, 
+    side: THREE.DoubleSide 
+  });
+  const videoScreen = new THREE.Mesh(videoGeometry, videoMaterial);
+  
+  // 사용자 정면 1.0m, 눈높이 1.2m에 배치
+  videoScreen.position.set(0, 1.2, -1.0); 
+  scene.add(videoScreen);
+
+  // 바닥 가이드라인 (내 위치 파악용)
+  const grid = new THREE.GridHelper(10, 10);
+  scene.add(grid);
+
+  // ----- 3. WebSocket 통신 및 텍스처 업데이트 -----
+  let ws;
+  let frameCount = 0;
+  const WS_URL = 'wss://192.168.10.23:8765';
+
+  function connectWebSocket() {
+    statusEl.textContent = 'Status: Connecting to ' + WS_URL;
+    ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+      statusEl.textContent = 'Status: WS Connected. Waiting for frames...';
+    };
+    
+    ws.onclose = () => {
+      statusEl.textContent = 'Status: WS Disconnected. Retrying in 3s...';
+      setTimeout(connectWebSocket, 3000);
+    };
+
+    ws.onerror = (e) => {
+      statusEl.textContent = 'Status: WS Error. SSL 승인 여부를 확인하세요.';
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.image) {
+          frameCount++;
+          // 10프레임마다 상태 업데이트 (성능 저하 방지)
+          if (frameCount % 10 === 0) {
+            statusEl.textContent = `Status: Receiving Frames (${frameCount})\nScreen: ${videoMaterial.map ? 'Connected' : 'Syncing...'}`;
+          }
+
+          const img = new Image();
+          img.onload = () => {
+            videoTexture.image = img;
+            videoTexture.needsUpdate = true;
+            
+            // 첫 프레임 도착 시 재질 업데이트 (노란색 -> 영상)
+            if (videoMaterial.map === null) {
+              videoMaterial.map = videoTexture;
+              videoMaterial.color.set(0xffffff); // 흰색으로 초기화하여 영상 색상 보존
+              videoMaterial.needsUpdate = true;
+            }
+          };
+          img.src = 'data:image/jpeg;base64,' + data.image;
+        }
+      } catch (e) {
+        console.warn("Parsing error", e);
+      }
+    };
+  }
+
+  // ----- 4. Hand Tracking 및 렌더 루프 -----
+  const jointMeshes = {};
+  renderer.setAnimationLoop((time, frame) => {
+    const session = renderer.xr.getSession();
+    const refSpace = renderer.xr.getReferenceSpace();
+
+    if (frame && session && refSpace) {
+      const handPayload = [];
+      
+      // 조인트 가시성 초기화
+      for (const k in jointMeshes) jointMeshes[k].visible = false;
+
+      for (const inputSource of session.inputSources) {
+        if (!inputSource.hand) continue;
+
+        const handName = inputSource.handedness === 'right' ? 'Right' : 'Left';
+        const joints = [];
+
+        for (const [jointName, jointSpace] of inputSource.hand.entries()) {
+          const jp = frame.getJointPose(jointSpace, refSpace);
+          if (!jp) continue;
+
+          const { x, y, z } = jp.transform.position;
+          const { x: qx, y: qy, z: qz, w: qw } = jp.transform.orientation;
+          
+          joints.push({ name: jointName, x, y, z, qx, qy, qz, qw });
+          
+          // 조인트 시각화 구체 업데이트
+          const key = `${handName}-${jointName}`;
+          if (!jointMeshes[key]) {
+            const mesh = new THREE.Mesh(
+              new THREE.SphereGeometry(0.005), 
+              new THREE.MeshBasicMaterial({ color: handName === 'Right' ? 0x00ffff : 0xff00ff })
+            );
+            scene.add(mesh);
+            jointMeshes[key] = mesh;
+          }
+          jointMeshes[key].position.set(x, y, z);
+          jointMeshes[key].visible = true;
+        }
+        handPayload.push({ hand: handName, joints });
+      }
+
+      // 서버로 손 데이터 전송
+      if (handPayload.length > 0 && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(handPayload));
+      }
+    }
+
+    renderer.render(scene, camera);
+  });
+
+  // VR 세션 시작 시 웹소켓 연결
+  renderer.xr.addEventListener('sessionstart', () => {
+    connectWebSocket();
+  });
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+</script>
+</body>
+</html>
