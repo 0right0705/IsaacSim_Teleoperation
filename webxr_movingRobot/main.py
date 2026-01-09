@@ -20,7 +20,6 @@ import omni.kit.viewport.utility as viewport_utils
 import cv2
 import base64
 import json
-# mainHandTeleop.py 파일에 위에서 작성한 LeapVectorMapping 클래스가 있다고 가정합니다.
 from mainHandTeleop import TesolloVectorMapping
 
 class loadUSD():
@@ -43,7 +42,7 @@ class loadUSD():
         self.left_hand_offset_pos = None
         self.right_hand_offset_pos = None
 
-        # 헤드 트래킹 캘리브레이션 변수
+        # [추가] 헤드 트래킹 캘리브레이션 변수
         self.head_calibrated = False
         self.head_offset_pos = None
         self.head_offset_quat = None
@@ -99,7 +98,7 @@ class loadUSD():
             
             origin_prim = get_prim_at_path(self.xr_origin_path)
             
-            # 속성을 바로 Set 하는 대신 AddTranslateOp()을 사용합니다.
+            # [수정 포인트] 속성을 바로 Set 하는 대신 AddTranslateOp()을 사용합니다.
             xformable = UsdGeom.Xformable(origin_prim)
             xformable.AddTranslateOp().Set(Gf.Vec3d(-0.6, 0.0, 2.3))
 
@@ -145,7 +144,7 @@ class loadUSD():
             "robot_description_path": self.left_robot_yaml,
             "urdf_path": self.urdf_path,
             "rmpflow_config_path": self.left_rmp_config,
-            "end_effector_frame_name": "openarm_left_link7", # [수정] left_link6 -> openarm_left_link7
+            "end_effector_frame_name": "openarm_left_link7", # left_link6 -> openarm_left_link7
             "maximum_substep_size": 0.00334
         }
         self.left_rmpflow = RmpFlow(**left_config)
@@ -156,7 +155,7 @@ class loadUSD():
             "robot_description_path": self.right_robot_yaml,
             "urdf_path": self.urdf_path,
             "rmpflow_config_path": self.right_rmp_config,
-            "end_effector_frame_name": "openarm_right_link7", # [수정] right_hand_arm_link6 -> openarm_right_link7
+            "end_effector_frame_name": "openarm_right_link7", # right_hand_arm_link6 -> openarm_right_link7
             "maximum_substep_size": 0.00334
         }
         self.right_rmpflow = RmpFlow(**right_config)
@@ -180,44 +179,52 @@ class loadUSD():
         robot.get_articulation_controller().set_gains(kps=kps, kds=kds)
         print("Robot Gains Force Set.")
 
-
-    ## 카메라 뷰만 움직이는 코드 ###
-    def hand_arm_Teleop(self, lvm, robot: SingleArticulation, left_joints, right_joints): 
+    ### 로봇 좌표도 움직이는 코드 ###
+    def hand_arm_Teleop(self, lvm, robot: SingleArticulation, left_joints, right_joints):
         from scipy.spatial.transform import Rotation as R
         dof_names = robot.dof_names
+        # 1. 데이터 수신 (머리 포즈 및 양손 데이터)
         l_hand_transforms, r_hand_transforms, l_wrist_mat, r_wrist_mat, head_data = lvm.get_avp_data_sync()
         
-        # --- 1. Head Tracking & Front-View Mapping ---
+        # --- 1. Head Tracking & Robot Base Movement ---
         head_pos, head_quat = lvm.convert_head_pose(head_data)
+        head_delta = np.zeros(3) # 기본값 초기화
         
         if head_pos is not None:
-            # [Isaac Sim 형식 quat을 Scipy 형식 [x, y, z, w]로 변환]
+            # Isaac 형식 쿼터니언 [w, x, y, z] -> Scipy 형식 [x, y, z, w] 변환
             curr_head_rot = R.from_quat([head_quat[1], head_quat[2], head_quat[3], head_quat[0]])
 
+            # 헤드 트래킹 초기 캘리브레이션
             if not self.head_calibrated:
-                print(">>> Calibrating Head View... Stand straight and look forward.")
+                print(">>> Calibrating Head & Robot Base...")
                 self.head_offset_pos = head_pos
-                self.head_offset_quat = curr_head_rot # 초기 머리 회전 저장
+                self.head_offset_quat = curr_head_rot
                 self.head_calibrated = True
                 return None
 
-            # A. 위치 오프셋 계산
-            rel_pos = head_pos - self.head_offset_pos
-            camera_base_pos = np.array([-0.6, 0.0, 2.3])
+            # 사용자의 머리 이동량(상대 변위) 계산
+            head_delta = (head_pos - self.head_offset_pos)
             
-            # B. 상대 회전 계산: (초기 머리의 역회전 * 현재 머리 회전)
+            # 사용자의 머리 회전량(상대 회전) 계산
             rel_head_rot = self.head_offset_quat.inv() * curr_head_rot
             
-            # C. 최종 회전 적용: (기본 50도 하방 각도 * 사용자의 상대적 머리 움직임)
-            final_rot_obj = self.base_view_rot * rel_head_rot
-            final_quat_scipy = final_rot_obj.as_quat()
+            # 로봇 본체 포즈 업데이트 (Z축 높이는 바닥에 고정)
+            new_robot_pos = np.array([head_delta[0], head_delta[1], 0.0])
             
-            # [다시 Isaac 형식 [w, x, y, z]로 변환]
-            final_quat_isaac = np.array([final_quat_scipy[3], final_quat_scipy[0], final_quat_scipy[1], final_quat_scipy[2]])
+            new_robot_quat_scipy = rel_head_rot.as_quat()
+            new_robot_quat_isaac = np.array([new_robot_quat_scipy[3], new_robot_quat_scipy[0], new_robot_quat_scipy[1], new_robot_quat_scipy[2]])
 
-            # 카메라 위치 및 회전 업데이트
+            # Isaac Sim 내의 로봇 본체 위치/회전 실시간 반영
+            robot.set_world_pose(position=new_robot_pos, orientation=new_robot_quat_isaac)
+
+            # 카메라 위치 업데이트 (이동된 로봇 본체를 따라가도록 설정)
+            camera_base_pos = np.array([-0.6, 0.0, 2.3]) # VR에서 나오는 초기 위치 수정하고 싶으면 이걸 수정하면 됨
+            final_rot_obj = self.base_view_rot * rel_head_rot
+            fq = final_rot_obj.as_quat()
+            final_quat_isaac = np.array([fq[3], fq[0], fq[1], fq[2]])
+
             self.robot_camera.set_world_pose(
-                position=camera_base_pos + rel_pos,
+                position=new_robot_pos + camera_base_pos,
                 orientation=final_quat_isaac 
             )
 
@@ -230,112 +237,82 @@ class loadUSD():
         if r_wrist_mat is not None:
             r_pos, r_rot = lvm.convert_avp_to_isaac_pose(r_wrist_mat, 'right')
             
-        # 캘리브레이션 (0점 조절)
+        # 손 캘리브레이션 (초기 위치 저장)
         if not self.calibrated:
-            # 최소한 한 손이라도 데이터가 들어왔을 때만 캘리브레이션 진행
             if l_pos is not None or r_pos is not None:
-                print(f">>> Calibrating... L: {l_pos is not None}, R: {r_pos is not None}")
-                
-                # 데이터가 있는 쪽만 오프셋 설정
-                if l_pos is not None:
-                    self.left_hand_offset_pos = l_pos
-                if r_pos is not None:
-                    self.right_hand_offset_pos = r_pos
-                    
+                if l_pos is not None: self.left_hand_offset_pos = l_pos
+                if r_pos is not None: self.right_hand_offset_pos = r_pos
                 self.calibrated = True
-                print(">>> Calibration Complete!")
-            else:
-                # 데이터가 아직 없으면 계속 기다림 (True로 바꾸지 않음)
-                # print("Waiting for hand data...") # 너무 많이 찍힐 수 있으니 필요시만 주석 해제
-                pass
-                
-            return None # 캘리브레이션 전에는 아래 제어 로직을 실행하지 않음
+                print(">>> Hand Calibration Complete!")
+            return None
 
         full_target_positions = robot.get_joint_positions()
         IK_scaler = 1.0
         dt = 1.0
-
-        # 로봇의 현재 월드 위치/회전
-        base_pos, base_rot = robot.get_world_pose()
-        
+        # 현재 실시간 업데이트된 로봇의 월드 위치 가져오기
+        current_base_pos, _ = robot.get_world_pose()
 
         # --- Left Arm & Hand Control ---
         if l_pos is not None:
-            # 1. 오프셋 계산 (이미 Isaac 좌표계임)
-            delta_pos = (l_pos - self.left_hand_offset_pos) * IK_scaler
+            # 사용자의 '몸(머리)' 대비 '손'의 순수 이동량 계산
+            # (전체 손 이동량) - (머리 이동량) = 몸체 기준 상대 이동량
+            hand_move = (l_pos - self.left_hand_offset_pos)
+            relative_hand_move = (hand_move - head_delta) * IK_scaler
             
-            # 2. 타겟 위치 설정 (수동 축 교체 삭제)
-            target_pos = base_pos + self.local_left_start_pos + delta_pos
+            # 타겟 위치 = 현재 이동한 로봇 베이스 + 기본 오프셋 + 상대 이동량
+            target_pos = current_base_pos + self.local_left_start_pos + relative_hand_move
             
-            # targetX = target_pos[0]
-            # targetY = -target_pos[2]
-            # targetZ = target_pos[1]
-            # calib_target_pos = np.array([targetX, targetY, targetZ])
-                        # 3. 시각화와 로봇 타겟을 동일하게 설정
+            # Isaac Sim의 축 반전 반영 (기존 물리 연산 유지)
+            arm_target = np.array([-target_pos[0], -target_pos[1], -target_pos[2]])
 
-            # 추가적인 * -1 연산 없이 그대로 전달            
-            armtargetX = -target_pos[0]
-            armtargetY = -target_pos[1]
-            armtargetZ = -target_pos[2]
-
-            arm_calib_target_pos = np.array([armtargetX, armtargetY, armtargetZ])
             if self.left_vis_sphere:
-                self.left_vis_sphere.set_world_pose(position=arm_calib_target_pos)
-            self.left_rmpflow.set_end_effector_target(arm_calib_target_pos, l_rot)
+                self.left_vis_sphere.set_world_pose(position=arm_target)
+            
+            # RMPflow 타겟 설정 및 업데이트
+            self.left_rmpflow.set_end_effector_target(arm_target, l_rot)
             self.left_rmpflow.update_world()
             
             left_action = self.left_policy.get_next_articulation_action(dt)
             if left_action.joint_positions is not None:
-                if left_action.joint_indices is not None:
-                     full_target_positions[left_action.joint_indices] = left_action.joint_positions
-                else:
-                     full_target_positions[self.left_active_indices] = left_action.joint_positions
+                indices = left_action.joint_indices if left_action.joint_indices is not None else self.left_active_indices
+                full_target_positions[indices] = left_action.joint_positions
             
-            # Hand Control
+            # 손가락 제어 로직
             if l_hand_transforms is not None and len(l_hand_transforms) > 0:
                 left_hand_degrees = lvm.calculate_hand_angles(l_hand_transforms)
                 left_finger_action_full = lvm.map_to_left_robot_action(left_hand_degrees, dof_names, left_joints)
-                
-                nonzero_indices = np.nonzero(left_finger_action_full)[0]
-                if len(nonzero_indices) > 0:
-                    full_target_positions[nonzero_indices] = left_finger_action_full[nonzero_indices]
+                nz = np.nonzero(left_finger_action_full)[0]
+                if len(nz) > 0:
+                    full_target_positions[nz] = left_finger_action_full[nz]
 
         # --- Right Arm & Hand Control ---
         if r_pos is not None:
-            # Arm Control
-            delta_pos = (r_pos - self.right_hand_offset_pos) * IK_scaler
-            target_pos = base_pos + self.local_right_start_pos + delta_pos
+            # 오른손도 동일하게 머리 이동량을 상쇄하여 상대적 위치 계산
+            hand_move = (r_pos - self.right_hand_offset_pos)
+            relative_hand_move = (hand_move - head_delta) * IK_scaler
             
-        
-            # targetX = target_pos[0]
-            # targetY = -target_pos[2]
-            # targetZ = target_pos[1]
-            # calib_target_pos = np.array([targetX, targetY, targetZ])
-            armtargetX = -target_pos[0]
-            armtargetY = -target_pos[1]
-            armtargetZ = -target_pos[2]
-            arm_calib_target_pos = np.array([armtargetX, armtargetY, armtargetZ])
-            if self.right_vis_sphere:
-                self.right_vis_sphere.set_world_pose(position=arm_calib_target_pos)
+            target_pos = current_base_pos + self.local_right_start_pos + relative_hand_move
+            
+            arm_target = np.array([-target_pos[0], -target_pos[1], -target_pos[2]])
 
-            self.right_rmpflow.set_end_effector_target(arm_calib_target_pos, r_rot)
+            if self.right_vis_sphere:
+                self.right_vis_sphere.set_world_pose(position=arm_target)
+
+            self.right_rmpflow.set_end_effector_target(arm_target, r_rot)
             self.right_rmpflow.update_world()
             
             right_action = self.right_policy.get_next_articulation_action(dt)
             if right_action.joint_positions is not None:
-                if right_action.joint_indices is not None:
-                    full_target_positions[right_action.joint_indices] = right_action.joint_positions
-                else:
-                    full_target_positions[self.right_active_indices] = right_action.joint_positions
+                indices = right_action.joint_indices if right_action.joint_indices is not None else self.right_active_indices
+                full_target_positions[indices] = right_action.joint_positions
             
-            # [수정] Hand Control (Fingers)
+            # 손가락 제어 로직
             if r_hand_transforms is not None and len(r_hand_transforms) > 0:
                 right_hand_degrees = lvm.calculate_hand_angles(r_hand_transforms)
                 right_finger_action_full = lvm.map_to_right_robot_action(right_hand_degrees, dof_names, right_joints)
-                
-                nonzero_indices = np.nonzero(right_finger_action_full)[0]
-                if len(nonzero_indices) > 0:
-                    full_target_positions[nonzero_indices] = right_finger_action_full[nonzero_indices]
+                nz = np.nonzero(right_finger_action_full)[0]
+                if len(nz) > 0:
+                    full_target_positions[nz] = right_finger_action_full[nz]
 
         return ArticulationAction(joint_positions=full_target_positions)
 

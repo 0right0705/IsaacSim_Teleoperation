@@ -16,11 +16,12 @@ from omni.isaac.core.utils.viewports import set_camera_view
 from isaacsim.robot_motion.motion_generation import RmpFlow, ArticulationMotionPolicy
 from isaacsim.core.utils.numpy.rotations import euler_angles_to_quats
 from omni.isaac.sensor import Camera
+from omni.isaac.core.prims import RigidPrim
+from pxr import UsdPhysics, PhysxSchema
 import omni.kit.viewport.utility as viewport_utils
 import cv2
 import base64
 import json
-# mainHandTeleop.py 파일에 위에서 작성한 LeapVectorMapping 클래스가 있다고 가정합니다.
 from mainHandTeleop import TesolloVectorMapping
 
 class loadUSD():
@@ -43,7 +44,7 @@ class loadUSD():
         self.left_hand_offset_pos = None
         self.right_hand_offset_pos = None
 
-        # 헤드 트래킹 캘리브레이션 변수
+        # [추가] 헤드 트래킹 캘리브레이션 변수
         self.head_calibrated = False
         self.head_offset_pos = None
         self.head_offset_quat = None
@@ -67,18 +68,73 @@ class loadUSD():
 
 
 
-    def setup_scene(self, world: World, ROBOT_PATH, ROBOT_PRIM_PATH) -> SingleArticulation:
-        world.get_physics_context().set_gravity(value=0.0)
-        world.scene.add_default_ground_plane(prim_path=f"{ROBOT_PRIM_PATH}")
+    def setup_scene(self, world: World, ROBOT_PATH, ROBOT_PRIM_PATH, STRAWBERRY_PATH, STRAWBERRY_PRIM_PATH, TABLE_PATH, TAPBLE_PRIM) -> tuple:
+        # 1. 물리 환경 및 바닥 설정
+        world.get_physics_context().set_gravity(value=-9.8)
+        
+        
+        # [수정] 바닥 평면은 독립적인 경로에 한 번만 생성합니다.
+        if not is_prim_path_valid("/World/defaultGroundPlane"):
+            world.scene.add_default_ground_plane(prim_path="/World/defaultGroundPlane")
+            
         if not is_prim_path_valid("/World/DomeLight"):
             define_prim("/World/DomeLight", "DomeLight")
             
+        # 2. 로봇 로드
         add_reference_to_stage(usd_path=ROBOT_PATH, prim_path=ROBOT_PRIM_PATH)
-        
         robot = SingleArticulation(prim_path=ROBOT_PRIM_PATH, name="Robot")
         robot.set_world_pose(position=np.array([0.0, 0.0, 0.0]))
         world.scene.add(robot)
 
+
+            
+        # 2. 테이블 로드
+        add_reference_to_stage(usd_path=TABLE_PATH, prim_path=TAPBLE_PRIM)
+        self.table = RigidPrim(
+            prim_path=TAPBLE_PRIM,
+            name="work_table",
+            position=np.array([0.5,0.0,0.0])
+        )
+        world.scene.add(self.table)
+        
+        # 3. 딸기 로드 및 물리 설정
+        add_reference_to_stage(usd_path=STRAWBERRY_PATH, prim_path=STRAWBERRY_PRIM_PATH)
+        
+        # [수정] RigidPrim 생성 시 충돌 근사 방식을 지정하면 더 안정적입니다.
+        strawberry = RigidPrim(
+            prim_path=STRAWBERRY_PRIM_PATH, 
+            name="strawberry_obj",
+            position=np.array([0.6, 0.0, 0.5]), # 바닥보다 위에서 시작
+            scale=np.array([0.15, 0.15, 0.15]),
+            mass=0.08
+        )
+        world.scene.add(strawberry)
+        
+        from omni.isaac.core.utils.prims import get_prim_at_path
+        prim = get_prim_at_path(STRAWBERRY_PRIM_PATH)
+        
+        # Rigid Body 및 Collision API 적용
+        if not prim.HasAPI(UsdPhysics.RigidBodyAPI):
+            UsdPhysics.RigidBodyAPI.Apply(prim)
+        
+        if not prim.HasAPI(UsdPhysics.CollisionAPI):
+            UsdPhysics.CollisionAPI.Apply(prim)
+            
+        if not prim.HasAPI(UsdPhysics.CollisionAPI):
+            UsdPhysics.CollisionAPI.Apply(prim)
+
+        # 메시 충돌 형상 강제 지정 (바닥 뚫림 방지 핵심)
+        # PhysxSDFMeshCollisionAPI 대신 UsdPhysics.MeshCollisionAPI를 사용합니다.
+        mesh_collision = UsdPhysics.MeshCollisionAPI.Apply(prim)
+        
+        # "convexDecomposition"은 물체의 오목한 부분까지 정밀하게 계산하는 방식입니다.
+        mesh_collision.GetApproximationAttr().Set("convexDecomposition")
+
+        # PhysX 전용 세부 설정
+        if not prim.HasAPI(PhysxSchema.PhysxCollisionAPI):
+            physx_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
+            physx_api.GetContactOffsetAttr().Set(0.002)
+            physx_api.GetRestOffsetAttr().Set(0.001)
 
         #camera 추가
         camera_prim_path = f"{ROBOT_PRIM_PATH}/openarm_base/robot_camera"
@@ -99,7 +155,7 @@ class loadUSD():
             
             origin_prim = get_prim_at_path(self.xr_origin_path)
             
-            # 속성을 바로 Set 하는 대신 AddTranslateOp()을 사용합니다.
+            # [수정 포인트] 속성을 바로 Set 하는 대신 AddTranslateOp()을 사용합니다.
             xformable = UsdGeom.Xformable(origin_prim)
             xformable.AddTranslateOp().Set(Gf.Vec3d(-0.6, 0.0, 2.3))
 
@@ -145,7 +201,7 @@ class loadUSD():
             "robot_description_path": self.left_robot_yaml,
             "urdf_path": self.urdf_path,
             "rmpflow_config_path": self.left_rmp_config,
-            "end_effector_frame_name": "openarm_left_link7", # [수정] left_link6 -> openarm_left_link7
+            "end_effector_frame_name": "openarm_left_link7", # left_link6 -> openarm_left_link7
             "maximum_substep_size": 0.00334
         }
         self.left_rmpflow = RmpFlow(**left_config)
@@ -156,14 +212,14 @@ class loadUSD():
             "robot_description_path": self.right_robot_yaml,
             "urdf_path": self.urdf_path,
             "rmpflow_config_path": self.right_rmp_config,
-            "end_effector_frame_name": "openarm_right_link7", # [수정] right_hand_arm_link6 -> openarm_right_link7
+            "end_effector_frame_name": "openarm_right_link7", # right_hand_arm_link6 -> openarm_right_link7
             "maximum_substep_size": 0.00334
         }
         self.right_rmpflow = RmpFlow(**right_config)
         self.right_policy = ArticulationMotionPolicy(robot, self.right_rmpflow)
         
         print("RmpFlow Initialized with openarm_link7 frames.")
-        return robot
+        return robot, strawberry
     
     def post_reset_initialize(self, robot):
         robot.set_world_pose(position=np.array([0.0, 0.0, 0.0]))
@@ -181,7 +237,6 @@ class loadUSD():
         print("Robot Gains Force Set.")
 
 
-    ## 카메라 뷰만 움직이는 코드 ###
     def hand_arm_Teleop(self, lvm, robot: SingleArticulation, left_joints, right_joints): 
         from scipy.spatial.transform import Rotation as R
         dof_names = robot.dof_names
@@ -338,8 +393,145 @@ class loadUSD():
                     full_target_positions[nonzero_indices] = right_finger_action_full[nonzero_indices]
 
         return ArticulationAction(joint_positions=full_target_positions)
+    
+    # ### 로봇 좌표도 움직이는 코드 ###
+    # def hand_arm_Teleop(self, lvm, robot: SingleArticulation, left_joints, right_joints):
+    #     from scipy.spatial.transform import Rotation as R
+    #     dof_names = robot.dof_names 
+    #     # 1. 데이터 수신 (머리 포즈 및 양손 데이터)
+    #     l_hand_transforms, r_hand_transforms, l_wrist_mat, r_wrist_mat, head_data = lvm.get_avp_data_sync()
+        
+    #     # --- 1. Head Tracking & Robot Base Movement ---
+    #     head_pos, head_quat = lvm.convert_head_pose(head_data)
+    #     head_delta = np.zeros(3) # 기본값 초기화
+        
+    #     if head_pos is not None:
+    #         # Isaac 형식 쿼터니언 [w, x, y, z] -> Scipy 형식 [x, y, z, w] 변환
+    #         curr_head_rot = R.from_quat([head_quat[1], head_quat[2], head_quat[3], head_quat[0]])
 
-    def run_simulator(self, world: World, robot: SingleArticulation):
+    #         # 헤드 트래킹 초기 캘리브레이션
+    #         if not self.head_calibrated:
+    #             print(">>> Calibrating Head & Robot Base...")
+    #             self.head_offset_pos = head_pos
+    #             self.head_offset_quat = curr_head_rot
+    #             self.head_calibrated = True
+    #             return None
+
+    #         # 사용자의 머리 이동량(상대 변위) 계산
+    #         head_delta = (head_pos - self.head_offset_pos)
+            
+    #         # 사용자의 머리 회전량(상대 회전) 계산
+    #         rel_head_rot = self.head_offset_quat.inv() * curr_head_rot
+            
+    #         # 로봇 본체 포즈 업데이트 (Z축 높이는 바닥에 고정)
+    #         new_robot_pos = np.array([head_delta[0], head_delta[1], 0.0])
+            
+    #         new_robot_quat_scipy = rel_head_rot.as_quat()
+    #         new_robot_quat_isaac = np.array([new_robot_quat_scipy[3], new_robot_quat_scipy[0], new_robot_quat_scipy[1], new_robot_quat_scipy[2]])
+
+    #         # Isaac Sim 내의 로봇 본체 위치/회전 실시간 반영
+    #         robot.set_world_pose(position=new_robot_pos, orientation=new_robot_quat_isaac)
+
+    #         # 카메라 위치 업데이트 (이동된 로봇 본체를 따라가도록 설정)
+    #         camera_base_pos = np.array([-0.6, 0.0, 2.3]) # VR에서 나오는 초기 위치 수정하고 싶으면 이걸 수정하면 됨
+    #         final_rot_obj = self.base_view_rot * rel_head_rot
+    #         fq = final_rot_obj.as_quat()
+    #         final_quat_isaac = np.array([fq[3], fq[0], fq[1], fq[2]])
+
+    #         self.robot_camera.set_world_pose(
+    #             position=new_robot_pos + camera_base_pos,
+    #             orientation=final_quat_isaac 
+    #         )
+
+    #     # --- 2. Hand & Arm Pose Processing ---
+    #     l_pos, l_rot = None, None
+    #     r_pos, r_rot = None, None
+
+    #     if l_wrist_mat is not None:
+    #         l_pos, l_rot = lvm.convert_avp_to_isaac_pose(l_wrist_mat, 'left')
+    #     if r_wrist_mat is not None:
+    #         r_pos, r_rot = lvm.convert_avp_to_isaac_pose(r_wrist_mat, 'right')
+            
+    #     # 손 캘리브레이션 (초기 위치 저장)
+    #     if not self.calibrated:
+    #         if l_pos is not None or r_pos is not None:
+    #             if l_pos is not None: self.left_hand_offset_pos = l_pos
+    #             if r_pos is not None: self.right_hand_offset_pos = r_pos
+    #             self.calibrated = True
+    #             print(">>> Hand Calibration Complete!")
+    #         return None
+
+    #     full_target_positions = robot.get_joint_positions()
+    #     IK_scaler = 1.0
+    #     dt = 1.0
+    #     # 현재 실시간 업데이트된 로봇의 월드 위치 가져오기
+    #     current_base_pos, _ = robot.get_world_pose()
+
+    #     # --- Left Arm & Hand Control ---
+    #     if l_pos is not None:
+    #         # 사용자의 '몸(머리)' 대비 '손'의 순수 이동량 계산
+    #         # (전체 손 이동량) - (머리 이동량) = 몸체 기준 상대 이동량
+    #         hand_move = (l_pos - self.left_hand_offset_pos)
+    #         relative_hand_move = (hand_move - head_delta) * IK_scaler
+            
+    #         # 타겟 위치 = 현재 이동한 로봇 베이스 + 기본 오프셋 + 상대 이동량
+    #         target_pos = current_base_pos + self.local_left_start_pos + relative_hand_move
+            
+    #         # Isaac Sim의 축 반전 반영 (기존 물리 연산 유지)
+    #         arm_target = np.array([-target_pos[0], -target_pos[1], -target_pos[2]])
+
+    #         if self.left_vis_sphere:
+    #             self.left_vis_sphere.set_world_pose(position=arm_target)
+            
+    #         # RMPflow 타겟 설정 및 업데이트
+    #         self.left_rmpflow.set_end_effector_target(arm_target, l_rot)
+    #         self.left_rmpflow.update_world()
+            
+    #         left_action = self.left_policy.get_next_articulation_action(dt)
+    #         if left_action.joint_positions is not None:
+    #             indices = left_action.joint_indices if left_action.joint_indices is not None else self.left_active_indices
+    #             full_target_positions[indices] = left_action.joint_positions
+            
+    #         # 손가락 제어 로직
+    #         if l_hand_transforms is not None and len(l_hand_transforms) > 0:
+    #             left_hand_degrees = lvm.calculate_hand_angles(l_hand_transforms)
+    #             left_finger_action_full = lvm.map_to_left_robot_action(left_hand_degrees, dof_names, left_joints)
+    #             nz = np.nonzero(left_finger_action_full)[0]
+    #             if len(nz) > 0:
+    #                 full_target_positions[nz] = left_finger_action_full[nz]
+
+    #     # --- Right Arm & Hand Control ---
+    #     if r_pos is not None:
+    #         # 오른손도 동일하게 머리 이동량을 상쇄하여 상대적 위치 계산
+    #         hand_move = (r_pos - self.right_hand_offset_pos)
+    #         relative_hand_move = (hand_move - head_delta) * IK_scaler
+            
+    #         target_pos = current_base_pos + self.local_right_start_pos + relative_hand_move
+            
+    #         arm_target = np.array([-target_pos[0], -target_pos[1], -target_pos[2]])
+
+    #         if self.right_vis_sphere:
+    #             self.right_vis_sphere.set_world_pose(position=arm_target)
+
+    #         self.right_rmpflow.set_end_effector_target(arm_target, r_rot)
+    #         self.right_rmpflow.update_world()
+            
+    #         right_action = self.right_policy.get_next_articulation_action(dt)
+    #         if right_action.joint_positions is not None:
+    #             indices = right_action.joint_indices if right_action.joint_indices is not None else self.right_active_indices
+    #             full_target_positions[indices] = right_action.joint_positions
+            
+    #         # 손가락 제어 로직
+    #         if r_hand_transforms is not None and len(r_hand_transforms) > 0:
+    #             right_hand_degrees = lvm.calculate_hand_angles(r_hand_transforms)
+    #             right_finger_action_full = lvm.map_to_right_robot_action(right_hand_degrees, dof_names, right_joints)
+    #             nz = np.nonzero(right_finger_action_full)[0]
+    #             if len(nz) > 0:
+    #                 full_target_positions[nz] = right_finger_action_full[nz]
+
+    #     return ArticulationAction(joint_positions=full_target_positions)
+
+    def run_simulator(self, world: World, robot: SingleArticulation, strawberry: SingleArticulation):
         print(f"Robot DoF Names: {robot.dof_names}")
         self.post_reset_initialize(robot)
         lvm = TesolloVectorMapping()
@@ -397,8 +589,11 @@ def main():
     
     usdPath = "/home/youngwoo/openarm_tesollo_urdf/openarm_tesollo.usd"
     primPath = "/World/openarm_tesollo_mount"
-    
-    robot = loading.setup_scene(world, usdPath, primPath)
+    strawberry_usd_path = "/home/youngwoo/Downloads/strawberry/strawberry.usd"
+    strawberry_prim_path = "/World/strawberry"
+    tablePath = "/home/youngwoo/TeleopTesollo/assets/desk.usd"
+    tablePrim = "/World/desk"
+    robot, strawberry = loading.setup_scene(world, usdPath, primPath, strawberry_usd_path, strawberry_prim_path, tablePath, tablePrim)
     
     world.reset()
 
@@ -408,7 +603,7 @@ def main():
         viewport_api.camera_path = f"{primPath}/openarm_base/robot_camera"
     
     # 루프 시작 (한 번만 호출)
-    loading.run_simulator(world, robot)
+    loading.run_simulator(world, robot, strawberry)
 
 if __name__ == "__main__":
     main()
