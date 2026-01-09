@@ -180,7 +180,7 @@ class loadUSD():
         robot.get_articulation_controller().set_gains(kps=kps, kds=kds)
         print("Robot Gains Force Set.")
 
-    
+    ### 로봇 좌표도 움직이는 코드 ###
     def hand_arm_Teleop(self, lvm, robot: SingleArticulation, left_joints, right_joints):
         from scipy.spatial.transform import Rotation as R
         dof_names = robot.dof_names
@@ -203,23 +203,23 @@ class loadUSD():
                 self.head_calibrated = True
                 return None
 
-            # A. 사용자의 머리 이동량(상대 변위) 계산
+            # 사용자의 머리 이동량(상대 변위) 계산
             head_delta = (head_pos - self.head_offset_pos)
             
-            # B. 사용자의 머리 회전량(상대 회전) 계산
+            # 사용자의 머리 회전량(상대 회전) 계산
             rel_head_rot = self.head_offset_quat.inv() * curr_head_rot
             
-            # C. 로봇 본체 포즈 업데이트 (Z축 높이는 바닥에 고정)
+            # 로봇 본체 포즈 업데이트 (Z축 높이는 바닥에 고정)
             new_robot_pos = np.array([head_delta[0], head_delta[1], 0.0])
             
             new_robot_quat_scipy = rel_head_rot.as_quat()
             new_robot_quat_isaac = np.array([new_robot_quat_scipy[3], new_robot_quat_scipy[0], new_robot_quat_scipy[1], new_robot_quat_scipy[2]])
 
-            # [핵심] Isaac Sim 내의 로봇 본체 위치/회전 실시간 반영
+            # Isaac Sim 내의 로봇 본체 위치/회전 실시간 반영
             robot.set_world_pose(position=new_robot_pos, orientation=new_robot_quat_isaac)
 
-            # D. 카메라 위치 업데이트 (이동된 로봇 본체를 따라가도록 설정)
-            camera_base_pos = np.array([-0.6, 0.0, 2.3]) 
+            # 카메라 위치 업데이트 (이동된 로봇 본체를 따라가도록 설정)
+            camera_base_pos = np.array([-0.6, 0.0, 2.3]) # VR에서 나오는 초기 위치 수정하고 싶으면 이걸 수정하면 됨
             final_rot_obj = self.base_view_rot * rel_head_rot
             fq = final_rot_obj.as_quat()
             final_quat_isaac = np.array([fq[3], fq[0], fq[1], fq[2]])
@@ -255,7 +255,7 @@ class loadUSD():
 
         # --- Left Arm & Hand Control ---
         if l_pos is not None:
-            # [핵심] 사용자의 '몸(머리)' 대비 '손'의 순수 이동량 계산
+            # 사용자의 '몸(머리)' 대비 '손'의 순수 이동량 계산
             # (전체 손 이동량) - (머리 이동량) = 몸체 기준 상대 이동량
             hand_move = (l_pos - self.left_hand_offset_pos)
             relative_hand_move = (hand_move - head_delta) * IK_scaler
@@ -317,6 +317,7 @@ class loadUSD():
 
         return ArticulationAction(joint_positions=full_target_positions)
 
+    ### 카메라 뷰만 움직이는 코드 ###
     # def hand_arm_Teleop(self, lvm, robot: SingleArticulation, left_joints, right_joints): 
     #     from scipy.spatial.transform import Rotation as R
     #     dof_names = robot.dof_names
