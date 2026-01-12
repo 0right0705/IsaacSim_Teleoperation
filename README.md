@@ -2,7 +2,6 @@
 Bimanual Teleoperation System using RMPflow and XR Hand Tracking
 
 ## 폴더별 특징
-***
 1. **webxr** : HMD(Vision Pro / Meta Quest)에 Isaac Sim 환경 스트리밍 없이 Teleoperation만 진행
 2. **webxr_cameraView** : HMD에 Isaac Sim 환경 스트리밍 및 고정 Camera Perspective
 3. **webxr_movingCamera** : HMD에 Isaac Sim 환경 스트리밍 및 Head 좌표에 따른 Camera 좌표 이동
@@ -11,7 +10,6 @@ Bimanual Teleoperation System using RMPflow and XR Hand Tracking
 
 
 ## 사용 방법
-***
 ### Server Computer에서 - 
 1. $ cd {원하는 폴더 이름} # 예시 : cd grabStrawberries
 2. $ ifconfig # 본인의 IP 주소 확인 후 handview.html, mainHandTeleop.py, streamer.py 파일에서 IP 주소 변경 (포트 번호는 그대로)
