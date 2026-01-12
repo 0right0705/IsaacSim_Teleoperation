@@ -90,7 +90,7 @@ class loadUSD():
             "robot_description_path": self.left_robot_yaml,
             "urdf_path": self.urdf_path,
             "rmpflow_config_path": self.left_rmp_config,
-            "end_effector_frame_name": "openarm_left_link7", # [수정] left_link6 -> openarm_left_link7
+            "end_effector_frame_name": "openarm_left_link7", # left_link6 -> openarm_left_link7
             "maximum_substep_size": 0.00334
         }
         self.left_rmpflow = RmpFlow(**left_config)
@@ -101,7 +101,7 @@ class loadUSD():
             "robot_description_path": self.right_robot_yaml,
             "urdf_path": self.urdf_path,
             "rmpflow_config_path": self.right_rmp_config,
-            "end_effector_frame_name": "openarm_right_link7", # [수정] right_hand_arm_link6 -> openarm_right_link7
+            "end_effector_frame_name": "openarm_right_link7", # right_hand_arm_link6 -> openarm_right_link7
             "maximum_substep_size": 0.00334
         }
         self.right_rmpflow = RmpFlow(**right_config)
