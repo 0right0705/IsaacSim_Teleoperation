@@ -120,8 +120,8 @@ class loadUSD():
         right_active_names = self.right_rmpflow.get_active_joints()
         self.right_active_indices = [all_joint_names.index(jn) for jn in right_active_names]
         
-        kps = np.full(robot.num_dof, 1000.0)
-        kds = np.full(robot.num_dof, 100.0)
+        kps = np.full(robot.num_dof, 1800.0)
+        kds = np.full(robot.num_dof, 180.0)
         robot.get_articulation_controller().set_gains(kps=kps, kds=kds)
         print("Robot Gains Force Set.")
 
