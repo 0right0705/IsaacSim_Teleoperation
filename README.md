@@ -23,10 +23,11 @@ Bimanual Teleoperation System using RMPflow and XR Hand Tracking
 3. Hand Calibration 후 Teleoperation 진행
 
 ### Vision Pro 내의 브라우저 접속 후 - 
-1. https://{본인 IP 주소}:8765 접속 후 "Your connection is not private" 뜨면 proceed to ... (unsafe) 버튼 클릭, 에러가 떠있어도 상관 없음
-2. 새 tab에서 https://{본인 IP 주소}:4443/handview.html 
-3. 브라우저 하단의 Start XR 버튼 클릭
-4. Hand Calibration 후 Teleoperation 진행
+1. https://{본인 IP 주소}:8765 접속 후 "Your connection is not private" 뜨면 proceed to ... (unsafe) 버튼 클릭, 에러가 떠있어도 상관 없음. 
+2. 새 tab에서 https://{본인 IP 주소}:4443/handview.html 접속
+3. https://{본인 IP 주소}:4443/handview.html에서 노란색 배경만 뜬다면, 하단의 Start XR 누른 후 핀치로 빠져나온 후 Isaac Sim 환경이 뜰 때까지 위 1번, 2번 반복.
+4. 브라우저 하단의 Start XR 버튼 클릭
+5. Hand Calibration 후 Teleoperation 진행
 
 ## 이 프로젝트는 Openarm & Tesollo DG5F USD로 진행함.
 > 다른 로봇 사용 시 
