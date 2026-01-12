@@ -1,2 +1,37 @@
 # IsaacSim_Teleoperation
 Bimanual Teleoperation System using RMPflow and XR Hand Tracking
+
+## 폴더별 특징
+***
+1. webxr 폴더 : HMD(Vision Pro / Meta Quest)에 Isaac Sim 환경 스트리밍 없이 Teleoperation만 진행
+2. webxr_cameraView : HMD에 Isaac Sim 환경 스트리밍 및 고정 Camera Perspective
+3. webxr_movingCamera : HMD에 Isaac Sim 환경 스트리밍 및 Head 좌표에 따른 Camera 좌표 이동
+4. webxr_movingRobot : HMD에 Isaac Sim 환경 스트리밍 및 Head 좌표에 따른 Camera 좌표 및 로봇 좌표 이동
+5. grabStrawberries : HMD에 Isaac SIm 환경 스트리밍 및 Head 좌표에 따른 Camera 좌표 이동 및 특정 mesh(Test는 연구실에서 만든 Strawberry USD로 사용하였으나 제공 X, 직접 mesh 생성 후 테스트 필요) grasping 테스트
+
+
+## 사용 방법
+***
+### Server Computer에서 - 
+> $ cd {원하는 폴더 이름} # 예시 : cd grabStrawberries
+> $ ifconfig # 본인의 IP 주소 확인 후 handview.html, mainHandTeleop.py, streamer.py 파일에서 IP 주소 변경 (포트 번호는 그대로)
+> $ openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365  // cert.pem, key.pem 생성(https 통신용)
+> $ python https_server.py
+> $ python main.py # Isaac Sim이 설치되어 있어야 함
+
+### Meta Quest3 내의 브라우저 접속 후 - 
+> https://{본인 IP 주소}:4443/handview.html 
+> 브라우저 하단의 Start XR 버튼 클릭
+> Hand Calibration 후 Teleoperation 진행
+
+### Vision Pro 내의 브라우저 접속 후 - 
+> https://{본인 IP 주소}:8765 접속 후 "Your connection is not private" 뜨면 proceed to ... (unsafe) 버튼 클릭, 에러가 떠있어도 상관 없음
+> 새 tab에서 https://{본인 IP 주소}:4443/handview.html 
+> 브라우저 하단의 Start XR 버튼 클릭
+> Hand Calibration 후 Teleoperation 진행
+
+## 이 프로젝트는 Openarm & Tesollo DG5F USD로 진행함.
+다른 로봇 사용 시 
+1. usd 파일 주소 변경
+2. 해당 로봇 팔에 맞는 yaml 파일 작성
+3. 
