@@ -270,7 +270,7 @@ class TesolloVectorMapping:
         if "Index" in angles_dict:
             avp_idx = angles_dict["Index"]
             if len(avp_idx) >= 3:
-                safe_set(left_joints[4], val(avp_idx[0]['xyz'], 0.5))           # Spread (lj_dg_2_1)
+                safe_set(left_joints[4], val(avp_idx[1]['xyz'], -0.5))           # Spread (lj_dg_2_1)
                 safe_set(left_joints[5], val(avp_idx[1]['xyz'], FLEXION_SCALE)) # Flexion 1 (lj_dg_2_2)
                 safe_set(left_joints[6], val(avp_idx[2]['xyz'], FLEXION_SCALE)) # Flexion 2 (lj_dg_2_3)
                 safe_set(left_joints[7], val(avp_idx[3]['xyz'], FLEXION_SCALE)) # Flexion 3 (lj_dg_2_4)
@@ -279,7 +279,7 @@ class TesolloVectorMapping:
         if "Middle" in angles_dict:
             avp_mid = angles_dict["Middle"]
             if len(avp_mid) >= 3:
-                safe_set(left_joints[8], val(avp_mid[0]['xyz'], 0.5))
+                safe_set(left_joints[8], val(avp_mid[1]['xyz'], -0.5))
                 safe_set(left_joints[9], val(avp_mid[1]['xyz'], FLEXION_SCALE))
                 safe_set(left_joints[10], val(avp_mid[2]['xyz'], FLEXION_SCALE))
                 safe_set(left_joints[11], val(avp_mid[3]['xyz'], FLEXION_SCALE))
@@ -288,7 +288,7 @@ class TesolloVectorMapping:
         if "Ring" in angles_dict:
             avp_ring = angles_dict["Ring"]
             if len(avp_ring) >= 3:
-                safe_set(left_joints[12], val(avp_ring[0]['xyz'], 0.5))
+                safe_set(left_joints[12], val(avp_ring[1]['xyz'], -0.5))
                 safe_set(left_joints[13], val(avp_ring[1]['xyz'], FLEXION_SCALE))
                 safe_set(left_joints[14], val(avp_ring[2]['xyz'], FLEXION_SCALE))
                 safe_set(left_joints[15], val(avp_ring[3]['xyz'], FLEXION_SCALE))
@@ -296,9 +296,11 @@ class TesolloVectorMapping:
         # 5. Little (소지/새끼손가락) - Tesollo lj_dg_5_1 ~ 5_4 
         if "Little" in angles_dict:
             avp_lit = angles_dict["Little"]
-            if len(avp_lit) >= 3:
-                safe_set(left_joints[16], val(avp_lit[0]['xyz'], 0.5))
-                safe_set(left_joints[17], val(avp_lit[1]['xyz'], FLEXION_SCALE))
+            if len(avp_lit) >= 2:
+                pinky_spread_x = np.deg2rad(avp_lit[1]['xyz'][0]) # 이거 avp_lit[1]로 하는게 맞음. avp_lit[0]으로 하면 변화가 거의 없음
+                safe_set(left_joints[16], pinky_spread_x * 0.1) # 0.1로 곱한 이유는 scale을 더 크게 하면 새끼손가락과 약지손가락이 겹쳐버림.. 필요하면 0.1보다 크게 해도 되긴 함
+                pinky_flexion = np.deg2rad(avp_lit[1]['xyz'][0]) * 0.05 # 얘는 조인트가 y축이 아니라 x축으로 움직임. 따라서 avp_lit[1]로 해놓아야 할듯. 그리고 0.05로 scale을 정한 이유는 안그러면 x축으로 너무 많이 회전하는 문제 발생해서 그럼
+                safe_set(left_joints[17], pinky_flexion) 
                 safe_set(left_joints[18], val(avp_lit[2]['xyz'], FLEXION_SCALE))
                 safe_set(left_joints[19], val(avp_lit[3]['xyz'], FLEXION_SCALE))
 
@@ -328,7 +330,7 @@ class TesolloVectorMapping:
         if "Index" in angles_dict:
             avp_idx = angles_dict["Index"]
             if len(avp_idx) >= 3:
-                safe_set(right_joints[4], val(avp_idx[0]['xyz'], 0.5))
+                safe_set(right_joints[4], val(avp_idx[1]['xyz'], 0.5))
                 safe_set(right_joints[5], val(avp_idx[1]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[6], val(avp_idx[2]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[7], val(avp_idx[3]['xyz'], FLEXION_SCALE))
@@ -337,7 +339,7 @@ class TesolloVectorMapping:
         if "Middle" in angles_dict:
             avp_mid = angles_dict["Middle"]
             if len(avp_mid) >= 3:
-                safe_set(right_joints[8], val(avp_mid[0]['xyz'], 0.5))
+                safe_set(right_joints[8], val(avp_mid[1]['xyz'], 0.5))
                 safe_set(right_joints[9], val(avp_mid[1]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[10], val(avp_mid[2]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[11], val(avp_mid[3]['xyz'], FLEXION_SCALE))
@@ -346,7 +348,7 @@ class TesolloVectorMapping:
         if "Ring" in angles_dict:
             avp_ring = angles_dict["Ring"]
             if len(avp_ring) >= 3:
-                safe_set(right_joints[12], val(avp_ring[0]['xyz'], 0.5))
+                safe_set(right_joints[12], val(avp_ring[1]['xyz'], 0.5))
                 safe_set(right_joints[13], val(avp_ring[1]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[14], val(avp_ring[2]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[15], val(avp_ring[3]['xyz'], FLEXION_SCALE))
@@ -354,9 +356,11 @@ class TesolloVectorMapping:
         # 5. Little (소지) - right_joints[16~19]
         if "Little" in angles_dict:
             avp_lit = angles_dict["Little"]
-            if len(avp_lit) >= 3:
-                safe_set(right_joints[16], val(avp_lit[0]['xyz'], 0.5))
-                safe_set(right_joints[17], val(avp_lit[1]['xyz'], FLEXION_SCALE))
+            if len(avp_lit) >= 2:
+                pinky_spread_x = np.deg2rad(-avp_lit[1]['xyz'][0]) # 이거 avp_lit[1]로 하는게 맞음. avp_lit[0]으로 하면 변화가 거의 없음
+                safe_set(right_joints[16], pinky_spread_x * 0.1) # 0.1로 곱한 이유는 scale을 더 크게 하면 새끼손가락과 약지손가락이 겹쳐버림.. 필요하면 0.1보다 크게 해도 되긴 함
+                pinky_flexion = np.deg2rad(avp_lit[1]['xyz'][0]) * -0.05 # 얘는 조인트가 y축이 아니라 x축으로 움직임. 따라서 avp_lit[1]로 해놓아야 할듯. 그리고 0.05로 scale을 정한 이유는 안그러면 x축으로 너무 많이 회전하는 문제 발생해서 그럼
+                safe_set(right_joints[17], pinky_flexion) 
                 safe_set(right_joints[18], val(avp_lit[2]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[19], val(avp_lit[3]['xyz'], FLEXION_SCALE))
 
