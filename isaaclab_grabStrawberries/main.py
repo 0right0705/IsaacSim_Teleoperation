@@ -23,7 +23,6 @@ ext_mgr.set_extension_enabled_immediate("isaacsim.robot_motion.motion_generation
 
 from isaacsim.core.api import World
 from isaacsim.core.prims import SingleArticulation, RigidPrim
-import isaacsim
 from isaacsim.core.api.objects import VisualSphere 
 from isaacsim.core.utils.types import ArticulationAction
 from isaacsim.core.utils.stage import add_reference_to_stage
@@ -78,8 +77,8 @@ class loadUSD():
         self.left_active_indices = []
         self.right_active_indices = []
 
-        self.local_left_start_pos = np.array([-0.35, -0.25, -0.4]) # 왼손이 Isaac Sim에서 시작 초기에 어디에 위치될건지
-        self.local_right_start_pos = np.array([-0.35, 0.25, -0.4]) # 오른손이 Isaac Sim에서 시작 초기에 어디에 위치될건지
+        self.local_left_start_pos = np.array([-0.35, -0.25, -0.4]) # 왼손 target을 초기에 어디에 위치할건지
+        self.local_right_start_pos = np.array([-0.35, 0.25, -0.4]) # 오른손이 target을 초기에 어디에 위치할건지
 
 
 
