@@ -11,21 +11,21 @@ Bimanual Teleoperation System using RMPflow and XR Hand Tracking
 
 ## 사용 방법
 ### Server Computer에서 - 
-1. $ cd {원하는 폴더 이름} # 예시 : cd grabStrawberries
-2. $ ifconfig # 본인의 IP 주소 확인 후 handview.html, mainHandTeleop.py, streamer.py 파일에서 IP 주소 변경 (포트 번호는 그대로)
-3. $ openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365  // cert.pem, key.pem 생성(https 통신용)
-4. $ python https_server.py
-5. $ python main.py # Isaac Sim이 설치되어 있어야 함
+1. $ **`cd {원하는 폴더 이름}`** # 예시 : cd grabStrawberries
+2. $ **`ifconfig**` # 본인의 IP 주소 확인 후 handview.html, mainHandTeleop.py, streamer.py 파일에서 IP 주소 변경 (포트 번호는 그대로)
+3. $ **`openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365`**  // cert.pem, key.pem 생성(https 통신용)
+4. $ **`python https_server.py`**
+5. $ **`python main.py`** # Isaac Sim이 설치되어 있어야 함
 
 ### Meta Quest3 내의 브라우저 접속 후 - 
-1. https://{본인 IP 주소}:4443/handview.html 
+1. **`https://{본인 IP 주소}:4443/handview.html`**
 2. 브라우저 하단의 Start XR 버튼 클릭
 3. Hand Calibration 후 Teleoperation 진행
 
 ### Vision Pro 내의 브라우저 접속 후 - 
-1. https://{본인 IP 주소}:8765 접속 후 "Your connection is not private" 뜨면 proceed to ... (unsafe) 버튼 클릭, 에러가 떠있어도 상관 없음. 
-2. 새 tab에서 https://{본인 IP 주소}:4443/handview.html 접속
-3. https://{본인 IP 주소}:4443/handview.html에서 노란색 배경만 뜬다면, 하단의 Start XR 누른 후 핀치로 빠져나온 후 Isaac Sim 환경이 뜰 때까지 위 1번, 2번 반복.
+1. **`https://{본인 IP 주소}:8765`** 접속 후 "Your connection is not private" 뜨면 proceed to ... (unsafe) 버튼 클릭, 에러가 떠있어도 상관 없음. 
+2. 새 tab에서 **`https://{본인 IP 주소}:4443/handview.html`** 접속
+3. **`https://{본인 IP 주소}:4443/handview.html`** 에서 노란색 배경만 뜬다면, 하단의 Start XR 누른 후 핀치로 빠져나온 후 Isaac Sim 환경이 뜰 때까지 위 1번, 2번 반복.
 4. 브라우저 하단의 Start XR 버튼 클릭
 5. Hand Calibration 후 Teleoperation 진행
 
