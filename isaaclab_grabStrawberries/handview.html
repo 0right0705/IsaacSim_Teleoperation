@@ -36,13 +36,36 @@ https://192.168.10.23:8765 에 직접 접속하여
   document.body.appendChild(renderer.domElement);
 
   // AR/VR 버튼 (Hand Tracking 필수 활성화)
-  document.body.appendChild(XRButton.createButton(renderer, {
+  const xrOptions = {
     requiredFeatures: ['local-floor'],
     optionalFeatures: ['hand-tracking', 'dom-overlay'],
     domOverlay: { root: document.body }
-  }));
+  };
+  const xrButton = XRButton.createButton(renderer, xrOptions);
+
+  document.body.appendChild(xrButton);
+  // 비전 프로는 아래가 꼭 필요함... 안하면 네트워크 연결이 안됨.
+  xrButton.addEventListener('click', () => {
+      statusEl.textContent = 'Status: Waking up Network...';
+      
+      // 이미 연결되어 있지 않다면 연결 시도
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+          startWebSocket(); 
+      }
+  });
 
   const statusEl = document.getElementById('status');
+
+  // ----- WebSocket (선택) -----
+  let ws;
+  function startWebSocket() {
+    try {
+      ws = new WebSocket('wss://192.168.10.23:8765');
+      ws.onopen = () => statusEl.textContent = 'Status: Hand data → WS connected';
+      ws.onclose = () => statusEl.textContent = 'Status: WS disconnected';
+      ws.onerror = (e) => statusEl.textContent = 'Status: WS error ' + (e?.message || '');
+    } catch (e) { statusEl.textContent = 'Status: WS init failed ' + e; }
+  }
 
   // ----- 2. 가상 스크린 (디버그 모드) -----
   // 초기 상태는 노란색(0xffff00)으로 설정하여 스크린 위치 확인
@@ -69,7 +92,6 @@ https://192.168.10.23:8765 에 직접 접속하여
   scene.add(grid);
 
   // ----- 3. WebSocket 통신 및 텍스처 업데이트 -----
-  let ws;
   let frameCount = 0;
   const WS_URL = 'wss://192.168.10.23:8765';
 
