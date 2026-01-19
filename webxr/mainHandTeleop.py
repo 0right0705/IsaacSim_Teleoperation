@@ -256,7 +256,9 @@ class TesolloVectorMapping:
             if idx_in_list is not None:
                 actions[idx_in_list] = value
 
-
+        def pitch(deg_array, scale=1.0):
+            return np.deg2rad(-deg_array[1]) * scale 
+        
         # 1. Thumb (엄지) - Tesollo lj_dg_1_1 ~ 1_4 
         if "Thumb" in angles_dict:
             avp_thb = angles_dict["Thumb"]
@@ -270,7 +272,7 @@ class TesolloVectorMapping:
         if "Index" in angles_dict:
             avp_idx = angles_dict["Index"]
             if len(avp_idx) >= 3:
-                safe_set(left_joints[4], val(avp_idx[1]['xyz'], -0.5))           # Spread (lj_dg_2_1)
+                safe_set(left_joints[4], pitch(avp_idx[1]['xyz'], -0.5))           # Spread (lj_dg_2_1)
                 safe_set(left_joints[5], val(avp_idx[1]['xyz'], FLEXION_SCALE)) # Flexion 1 (lj_dg_2_2)
                 safe_set(left_joints[6], val(avp_idx[2]['xyz'], FLEXION_SCALE)) # Flexion 2 (lj_dg_2_3)
                 safe_set(left_joints[7], val(avp_idx[3]['xyz'], FLEXION_SCALE)) # Flexion 3 (lj_dg_2_4)
@@ -279,7 +281,7 @@ class TesolloVectorMapping:
         if "Middle" in angles_dict:
             avp_mid = angles_dict["Middle"]
             if len(avp_mid) >= 3:
-                safe_set(left_joints[8], val(avp_mid[1]['xyz'], -0.5))
+                safe_set(left_joints[8], pitch(avp_mid[1]['xyz'], -0.5))
                 safe_set(left_joints[9], val(avp_mid[1]['xyz'], FLEXION_SCALE))
                 safe_set(left_joints[10], val(avp_mid[2]['xyz'], FLEXION_SCALE))
                 safe_set(left_joints[11], val(avp_mid[3]['xyz'], FLEXION_SCALE))
@@ -288,7 +290,7 @@ class TesolloVectorMapping:
         if "Ring" in angles_dict:
             avp_ring = angles_dict["Ring"]
             if len(avp_ring) >= 3:
-                safe_set(left_joints[12], val(avp_ring[1]['xyz'], -0.5))
+                safe_set(left_joints[12], pitch(avp_ring[1]['xyz'], -0.5))
                 safe_set(left_joints[13], val(avp_ring[1]['xyz'], FLEXION_SCALE))
                 safe_set(left_joints[14], val(avp_ring[2]['xyz'], FLEXION_SCALE))
                 safe_set(left_joints[15], val(avp_ring[3]['xyz'], FLEXION_SCALE))
@@ -312,7 +314,9 @@ class TesolloVectorMapping:
 
         def val(deg_array, scale=1.0):
             return np.deg2rad(-deg_array[0]) * scale 
-
+        def pitch(deg_array, scale=1.0):
+            return np.deg2rad(-deg_array[1]) * scale 
+        
         FLEXION_SCALE = 1.4 
         def safe_set(idx_in_list, value):
             if idx_in_list is not None:
@@ -330,7 +334,7 @@ class TesolloVectorMapping:
         if "Index" in angles_dict:
             avp_idx = angles_dict["Index"]
             if len(avp_idx) >= 3:
-                safe_set(right_joints[4], val(avp_idx[1]['xyz'], 0.5))
+                safe_set(right_joints[4], pitch(avp_idx[1]['xyz'], 0.5))
                 safe_set(right_joints[5], val(avp_idx[1]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[6], val(avp_idx[2]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[7], val(avp_idx[3]['xyz'], FLEXION_SCALE))
@@ -339,7 +343,7 @@ class TesolloVectorMapping:
         if "Middle" in angles_dict:
             avp_mid = angles_dict["Middle"]
             if len(avp_mid) >= 3:
-                safe_set(right_joints[8], val(avp_mid[1]['xyz'], 0.5))
+                safe_set(right_joints[8], pitch(avp_mid[1]['xyz'], 0.5))
                 safe_set(right_joints[9], val(avp_mid[1]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[10], val(avp_mid[2]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[11], val(avp_mid[3]['xyz'], FLEXION_SCALE))
@@ -348,7 +352,7 @@ class TesolloVectorMapping:
         if "Ring" in angles_dict:
             avp_ring = angles_dict["Ring"]
             if len(avp_ring) >= 3:
-                safe_set(right_joints[12], val(avp_ring[1]['xyz'], 0.5))
+                safe_set(right_joints[12], pitch(avp_ring[1]['xyz'], 0.5))
                 safe_set(right_joints[13], val(avp_ring[1]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[14], val(avp_ring[2]['xyz'], FLEXION_SCALE))
                 safe_set(right_joints[15], val(avp_ring[3]['xyz'], FLEXION_SCALE))
