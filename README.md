@@ -12,7 +12,7 @@ Bimanual Teleoperation System using RMPflow and XR Hand Tracking
 ## 사용 방법
 ### Server Computer에서 - 
 1. $ **`cd {원하는 폴더 이름}`** # 예시 : cd grabStrawberries
-2. $ **`ifconfig**` # 본인의 IP 주소 확인 후 handview.html, mainHandTeleop.py, streamer.py 파일에서 IP 주소 변경 (포트 번호는 그대로)
+2. $ **`ifconfig`** # 본인의 IP 주소 확인 후 handview.html, mainHandTeleop.py, streamer.py 파일에서 IP 주소 변경 (포트 번호는 그대로)
 3. $ **`openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365`**  // cert.pem, key.pem 생성(https 통신용)
 4. $ **`python https_server.py`**
 5. $ **`python main.py`** # Isaac Sim이 설치되어 있어야 함
