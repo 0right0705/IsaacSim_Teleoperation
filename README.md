@@ -11,11 +11,12 @@ Bimanual Teleoperation System using RMPflow and XR Hand Tracking
 
 ## 사용 방법
 ### Server Computer에서 - 
-1. $ **`cd {원하는 폴더 이름}`** # 예시 : cd grabStrawberries
-2. $ **`ifconfig`** # 본인의 IP 주소 확인 후 handview.html, mainHandTeleop.py, streamer.py 파일에서 IP 주소 변경 (포트 번호는 그대로)
-3. $ **`openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365`**  // cert.pem, key.pem 생성(https 통신용)
-4. $ **`python https_server.py`**
-5. $ **`python main.py`** # Isaac Sim이 설치되어 있어야 함
+1. **`Openarm rmpflow로 제어하기 위해 URDF 파일의 .obj 확장자 경로 변경`**
+2. $ **`cd {원하는 폴더 이름}`** # 예시 : cd grabStrawberries
+3. $ **`ifconfig`** # 본인의 IP 주소 확인 후 handview.html, mainHandTeleop.py, streamer.py 파일에서 IP 주소 변경 (포트 번호는 그대로)
+4. $ **`openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365`**  // cert.pem, key.pem 생성(https 통신용)
+5. $ **`python https_server.py`**
+6. $ **`python main.py`** # Isaac Sim이 설치되어 있어야 함
 
 ### Meta Quest3 내의 브라우저 접속 후 - 
 1. **`https://{본인 IP 주소}:4443/handview.html`**
@@ -51,11 +52,12 @@ Bimanual Teleoperation System using RMPflow and XR Hand Tracking
 
 ## How to Use
 ### On the Server Computer - 
-1. Navigate to the project directory: **`cd {folder_name}`**.
-2. Run **`ifconfig`** to find your IP address. Update the IP address field in **`handview.html`**, **`mainHandTeleop.py`**, and **`streamer.py`** (do not change the port numbers).
-3. Generate SSL certificates for secure HTTPS communication using the OpenSSL command **`openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365`**
-4. Start the HTTPS server by running **`python https_server.py`**.
-5. Execute the main script by running **`python main.py`**.. Note: This requires NVIDIA Isaac Sim to be installed on your system.
+1. **`Channge .obj file paths in URDF file to control Openarm using rmpflow`**
+2. Navigate to the project directory: **`cd {folder_name}`**.
+3. Run **`ifconfig`** to find your IP address. Update the IP address field in **`handview.html`**, **`mainHandTeleop.py`**, and **`streamer.py`** (do not change the port numbers).
+4. Generate SSL certificates for secure HTTPS communication using the OpenSSL command **`openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365`**
+5. Start the HTTPS server by running **`python https_server.py`**.
+6. Execute the main script by running **`python main.py`**.. Note: This requires NVIDIA Isaac Sim to be installed on your system.
 
 ## Accessing via Meta Quest 3 Browser
 1. Navigate to: **`https://{Your_IP_Address}:4443/handview.html`**
