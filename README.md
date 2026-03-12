@@ -1,6 +1,8 @@
 # IsaacSim_Teleoperation
 Bimanual Teleoperation System using RMPflow and XR Hand Tracking
-Project Video Link : https://youtu.be/nfqXstzo6zw?si=iM8MCfHn4hWi-6Jy
+
+# Project Video Link
+https://youtu.be/nfqXstzo6zw?si=iM8MCfHn4hWi-6Jy
 
 ## 폴더별 특징
 1. **`webxr`** : HMD(Vision Pro / Meta Quest)에 Isaac Sim 환경 스트리밍 없이 Teleoperation만 진행
